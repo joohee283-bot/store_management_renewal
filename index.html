@@ -115,10 +115,16 @@
         </div>
 
         <div class="filter-section" id="zone-filters">
-            <button class="filter-btn active" data-filter="all">전체</button>
-            <button class="filter-btn" data-filter="구독케어존">구독케어존</button>
-            <button class="filter-btn" data-filter="집한채">집한채</button>
-            <button class="filter-btn" data-filter="M&B">M&B</button>
+            <!-- Level 1 row -->
+            <div class="zone-level1-row" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+                <button class="filter-btn active" data-level="1" data-filter="all">전체</button>
+                <button class="filter-btn" data-level="1" data-filter="매장외부">매장 외부</button>
+                <button class="filter-btn" data-level="1" data-filter="제품존">제품존</button>
+                <button class="filter-btn" data-level="1" data-filter="연출존">연출존</button>
+            </div>
+            <!-- Level 2 row -->
+            <div class="zone-level2-row" id="zone-level2-row" style="display: none; gap: 0.5rem; flex-wrap: wrap;">
+            </div>
         </div>
 
         <div class="store-grid" id="store-container">
@@ -152,14 +158,19 @@
                     </div>
                     <div class="filter-group-v" style="margin-top: 0.4rem;">
                         <label>ZONE</label>
-                        <div class="filter-button-group" id="zone-btn-group">
-                            <button class="filter-btn-item active" data-value="all">전체</button>
-                            <button class="filter-btn-item" data-value="구독케어존">구독케어존</button>
-                            <button class="filter-btn-item" data-value="집한채">집한채</button>
-                            <button class="filter-btn-item" data-value="M&B">M&B</button>
-                            <button class="filter-btn-item" data-value="냉장고">냉장고</button>
-                            <button class="filter-btn-item" data-value="세탁기">세탁기</button>
-                            <button class="filter-btn-item" data-value="주방가전">주방가전</button>
+                        <!-- Zone Level 1 -->
+                        <div class="filter-button-group" id="modal-zone-level1-group" style="margin-bottom: 0.5rem;">
+                            <button class="filter-btn-item active" data-zone1="all">전체</button>
+                            <button class="filter-btn-item" data-zone1="매장외부">매장 외부</button>
+                            <button class="filter-btn-item" data-zone1="제품존">제품존</button>
+                            <button class="filter-btn-item" data-zone1="연출존">연출존</button>
+                        </div>
+                        <!-- Zone Level 2 (shown when a level1 is selected) -->
+                        <div id="modal-zone-level2-wrap" style="display: none;">
+                            <div class="filter-button-group" id="modal-zone-level2-group">
+                                <!-- Injected by JS -->
+                            </div>
+                            <div class="selected-tags-container" id="zone-tags-container"></div>
                         </div>
                     </div>
                 </div>

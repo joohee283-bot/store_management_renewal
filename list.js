@@ -2,21 +2,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const STORES = window.STORES;
     const filterContainer = document.getElementById('zone-filters');
     const storeContainer = document.getElementById('store-container');
-    const filterButtons = filterContainer.querySelectorAll('.filter-btn');
     const totalCountSpan = document.getElementById('store-total');
     const viewToggles = document.querySelectorAll('.view-toggle');
 
     if (!STORES) return;
 
-    let activeFilters = new Set(['all']);
+    // Zone hierarchy data
+    const ZONE_HIERARCHY = {
+        '매장외부': ['주출입문', '주차장'],
+        '제품존': ['TV', 'RAC', 'PC', '냉장고', '세탁기', 'CAC', '에어케어', '워터케어', '육성제품', '청소기', '쿠킹', '모니터', 'AV'],
+        '연출존': ['집한채', 'M&B', '구독케어존', '웨딩존', '키즈존', '기타']
+    };
+
+    let pageLevel1 = 'all'; // current level1 selection on page
+    let pageActiveLevel2 = new Set(['all']); // selected level2 zones on page
     let currentView = 'card';
+
+    // ---------- Page-level zone filter (1st/2nd level) ----------
+    const pageZoneLevel1Row = filterContainer.querySelector('.zone-level1-row');
+    const pageZoneLevel2Row = document.getElementById('zone-level2-row');
+
+    const getZonesForFilter = () => {
+        if (pageLevel1 === 'all') return null; // null means no filter
+        if (pageActiveLevel2.has('all')) {
+            return ZONE_HIERARCHY[pageLevel1] || [];
+        }
+        return Array.from(pageActiveLevel2);
+    };
+
+    const renderPageLevel2 = () => {
+        if (pageLevel1 === 'all') {
+            pageZoneLevel2Row.style.display = 'none';
+            pageZoneLevel2Row.innerHTML = '';
+            return;
+        }
+        const options = ZONE_HIERARCHY[pageLevel1] || [];
+        pageZoneLevel2Row.innerHTML = '';
+        // Add "전체" button first
+        const allBtn = document.createElement('button');
+        allBtn.className = 'filter-btn' + (pageActiveLevel2.has('all') ? ' active' : '');
+        allBtn.textContent = '전체';
+        allBtn.dataset.level2 = 'all';
+        pageZoneLevel2Row.appendChild(allBtn);
+
+        options.forEach(zone => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn' + (pageActiveLevel2.has(zone) ? ' active' : '');
+            btn.textContent = zone;
+            btn.dataset.level2 = zone;
+            pageZoneLevel2Row.appendChild(btn);
+        });
+        pageZoneLevel2Row.style.display = 'flex';
+    };
 
     const renderStores = () => {
         storeContainer.innerHTML = '';
 
+        const activeZones = getZonesForFilter();
         const filteredStores = STORES.filter(store => {
-            if (activeFilters.has('all')) return true;
-            return Array.from(activeFilters).some(filter => store.zones.includes(filter));
+            if (activeZones === null) return true;
+            return activeZones.some(z => store.zones.includes(z));
         });
 
         totalCountSpan.textContent = filteredStores.length;
@@ -72,24 +117,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const filter = btn.dataset.filter;
-            if (filter === 'all') {
-                activeFilters.clear();
-                activeFilters.add('all');
+    // Level 1 button click
+    pageZoneLevel1Row.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-btn');
+        if (!btn) return;
+        const filter = btn.dataset.filter;
+        pageLevel1 = filter;
+        pageActiveLevel2.clear();
+        pageActiveLevel2.add('all');
+        pageZoneLevel1Row.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+        renderPageLevel2();
+        renderStores();
+    });
+
+    // Level 2 button click (delegated)
+    pageZoneLevel2Row.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-btn');
+        if (!btn) return;
+        const zone = btn.dataset.level2;
+        if (zone === 'all') {
+            pageActiveLevel2.clear();
+            pageActiveLevel2.add('all');
+        } else {
+            pageActiveLevel2.delete('all');
+            if (pageActiveLevel2.has(zone)) {
+                pageActiveLevel2.delete(zone);
+                if (pageActiveLevel2.size === 0) pageActiveLevel2.add('all');
             } else {
-                if (activeFilters.has('all')) activeFilters.delete('all');
-                if (activeFilters.has(filter)) {
-                    activeFilters.delete(filter);
-                    if (activeFilters.size === 0) activeFilters.add('all');
-                } else {
-                    activeFilters.add(filter);
-                }
+                pageActiveLevel2.add(zone);
             }
-            filterButtons.forEach(b => b.classList.toggle('active', activeFilters.has(b.dataset.filter)));
-            renderStores();
+        }
+        pageZoneLevel2Row.querySelectorAll('.filter-btn').forEach(b => {
+            const z = b.dataset.level2;
+            b.classList.toggle('active', pageActiveLevel2.has(z));
         });
+        renderStores();
     });
 
     viewToggles.forEach(toggle => {
@@ -119,7 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let selectedDists = new Set(['all']);
     let selectedChannels = new Set(['all']);
-    let selectedZones = new Set(['all']);
+    // Zone: level1 + level2
+    let modalZoneLevel1 = 'all';
+    let modalSelectedLevel2 = new Set(['all']);
     const performModalSearch = () => {
         const searchTerm = document.getElementById('modal-search-input').value.toLowerCase();
         const startDateInput = document.getElementById('start-date').value;
@@ -127,11 +191,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const startDate = startDateInput ? new Date(startDateInput) : null;
         const endDate = endDateInput ? new Date(endDateInput) : null;
 
+        const getModalZones = () => {
+            if (modalZoneLevel1 === 'all') return null;
+            if (modalSelectedLevel2.has('all')) return ZONE_HIERARCHY[modalZoneLevel1] || [];
+            return Array.from(modalSelectedLevel2);
+        };
+
         const filtered = STORES.filter(s => {
             const matchSearch = s.name.toLowerCase().includes(searchTerm) || s.address.toLowerCase().includes(searchTerm);
             const matchDist = selectedDists.has('all') || selectedDists.has(s.distribution);
             const matchChannel = selectedChannels.has('all') || selectedChannels.has(s.channel);
-            const matchZone = selectedZones.has('all') || s.zones.some(z => selectedZones.has(z));
+            const activeZones = getModalZones();
+            const matchZone = activeZones === null || s.zones.some(z => activeZones.includes(z));
 
             const storeDate = new Date(s.inspection.date);
             let matchDate = true;
@@ -279,13 +350,102 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const distLogic = setupButtonMultiSelect('dist-btn-group', 'dist-tags-container', selectedDists, updateChannelOptions);
     const channelLogic = setupButtonMultiSelect('channel-btn-group', 'channel-tags-container', selectedChannels);
-    const zoneLogic = setupButtonMultiSelect('zone-btn-group', null, selectedZones);
+
+    // --- Modal Zone Level1/Level2 logic ---
+    const modalZoneLevel1Group = document.getElementById('modal-zone-level1-group');
+    const modalZoneLevel2Wrap = document.getElementById('modal-zone-level2-wrap');
+    const modalZoneLevel2Group = document.getElementById('modal-zone-level2-group');
+    const zoneTagsContainer = document.getElementById('zone-tags-container');
+
+    const renderModalZoneLevel2 = () => {
+        if (modalZoneLevel1 === 'all') {
+            modalZoneLevel2Wrap.style.display = 'none';
+            modalZoneLevel2Group.innerHTML = '';
+            zoneTagsContainer.innerHTML = '';
+            return;
+        }
+        const options = ZONE_HIERARCHY[modalZoneLevel1] || [];
+        modalZoneLevel2Wrap.style.display = 'block';
+        modalZoneLevel2Group.innerHTML = '';
+
+        // 전체 button
+        const allBtn = document.createElement('button');
+        allBtn.className = 'filter-btn-item' + (modalSelectedLevel2.has('all') ? ' active' : '');
+        allBtn.textContent = '전체';
+        allBtn.dataset.value = 'all';
+        modalZoneLevel2Group.appendChild(allBtn);
+
+        options.forEach(zone => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn-item' + (modalSelectedLevel2.has(zone) ? ' active' : '');
+            btn.textContent = zone;
+            btn.dataset.value = zone;
+            modalZoneLevel2Group.appendChild(btn);
+        });
+        renderZoneTags();
+    };
+
+    const renderZoneTags = () => {
+        zoneTagsContainer.innerHTML = '';
+        if (modalSelectedLevel2.has('all') || modalZoneLevel1 === 'all') return;
+        modalSelectedLevel2.forEach(val => {
+            const tag = document.createElement('div');
+            tag.className = 'filter-tag';
+            tag.innerHTML = `<span>${val}</span><span class="tag-remove" data-value="${val}">&times;</span>`;
+            tag.querySelector('.tag-remove').onclick = () => {
+                modalSelectedLevel2.delete(val);
+                if (modalSelectedLevel2.size === 0) modalSelectedLevel2.add('all');
+                renderModalZoneLevel2();
+                performModalSearch();
+            };
+            zoneTagsContainer.appendChild(tag);
+        });
+    };
+
+    // Level 1 click
+    modalZoneLevel1Group.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-btn-item');
+        if (!btn) return;
+        const val = btn.dataset.zone1;
+        modalZoneLevel1 = val;
+        modalSelectedLevel2.clear();
+        modalSelectedLevel2.add('all');
+        modalZoneLevel1Group.querySelectorAll('.filter-btn-item').forEach(b => b.classList.toggle('active', b.dataset.zone1 === val));
+        renderModalZoneLevel2();
+        performModalSearch();
+    });
+
+    // Level 2 click
+    modalZoneLevel2Group.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-btn-item');
+        if (!btn) return;
+        const val = btn.dataset.value;
+        if (val === 'all') {
+            modalSelectedLevel2.clear();
+            modalSelectedLevel2.add('all');
+        } else {
+            modalSelectedLevel2.delete('all');
+            if (modalSelectedLevel2.has(val)) {
+                modalSelectedLevel2.delete(val);
+                if (modalSelectedLevel2.size === 0) modalSelectedLevel2.add('all');
+            } else {
+                modalSelectedLevel2.add(val);
+            }
+        }
+        renderModalZoneLevel2();
+        performModalSearch();
+    });
 
     openDownloadBtn.onclick = () => {
         downloadModal.style.display = 'flex';
+        // Reset zone state
+        modalZoneLevel1 = 'all';
+        modalSelectedLevel2.clear();
+        modalSelectedLevel2.add('all');
+        modalZoneLevel1Group.querySelectorAll('.filter-btn-item').forEach(b => b.classList.toggle('active', b.dataset.zone1 === 'all'));
+        renderModalZoneLevel2();
         distLogic.updateUI();
         channelLogic.updateUI();
-        zoneLogic.updateUI();
         updateChannelOptions();
         renderModalResults(STORES);
     };
