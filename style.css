@@ -67,10 +67,19 @@ h1.page-title {
 /* Filter Buttons */
 .filter-section {
     display: flex;
-    justify-content: center;
-    gap: 0.75rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
     margin-bottom: 2rem;
+}
+
+.zone-level1-row,
+.zone-level2-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .filter-btn {

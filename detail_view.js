@@ -27,11 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <img src="${typeof img === 'string' ? img : img.url}" class="${i === 0 ? 'active' : ''}" data-idx="${i}">
                 `).join('')}
             </div>
-            <button class="explore-btn" id="open-gallery-btn">ZONE별 매장 살펴보기</button>
-            <button class="download-btn" id="open-download-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                매장 이미지 다운로드
-            </button>
         </div>
         <div class="right-section">
             <div class="info-card">
@@ -58,21 +53,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
-                <div class="inspection-section">
-                    <div class="inspection-title">${store.inspection.date} 주요매장 월점검</div>
-                    <div class="inspection-grid">
-                        <div class="inspection-item">
-                            <label>점검 상태</label>
-                            <span class="highlight-red">${store.inspection.status}</span>
-                        </div>
-                        <div class="inspection-item">
-                            <label>점검 등급</label>
-                            <span class="highlight-red">${store.inspection.grade}</span>
-                        </div>
+                <div class="bottom-action-grid">
+                    <!-- Left: Inspection Action -->
+                    <div class="action-card">
+                        <div class="action-card-title">점검 현황</div>
+                        <div class="action-card-desc">매장 점검<br>임시 중단</div>
                     </div>
-                    <button class="btn-more">점검 내역 더 보기</button>
+
+                    <!-- Right: Zone Explore Action -->
+                    <div class="action-card">
+                        <div class="action-card-title">ZONE 별 매장 현황</div>
+                        <button id="open-gallery-btn" class="btn-gallery-open" style="background: var(--lg-red); border: 2px solid var(--lg-red); color: white;">사진 보기</button>
+                        <div class="update-date">Update. 2026/03/11</div>
+                    </div>
                 </div>
             </div>
+            
+            <button class="download-btn" id="open-download-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                매장 이미지 다운로드
+            </button>
         </div>
     `;
 
@@ -140,8 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedLevel2 = new Set(['all']);
 
     const level2Mapping = {
-        '연출존': ["구독케어존", "집한채", "M&B"],
-        '제품존': ["냉장고", "세탁기", "주방가전"]
+        '매장 외부': ["주출입문", "주차장"],
+        '연출존': ["집한채", "M&B", "구독케어존", "웨딩존", "키즈존", "기타"],
+        '제품존': ["TV", "RAC", "PC", "냉장고", "세탁기", "CAC", "에어케어", "워터케어", "육성제품", "청소기", "쿠킹", "모니터", "AV"]
     };
 
     const renderGalleryButtons = () => {
@@ -149,9 +150,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         filterContainer.innerHTML = `
             <div class="filter-level-1" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; width: 100%;">
-                <button class="filter-btn ${currentLevel1 === 'all' ? 'active' : ''}" data-level1="all">전체</button>
-                <button class="filter-btn ${currentLevel1 === '연출존' ? 'active' : ''}" data-level1="연출존">연출존</button>
+                <button class="filter-btn ${currentLevel1 === '전체' ? 'active' : (currentLevel1 === 'all' ? 'active' : '')}" data-level1="all">전체</button>
+                <button class="filter-btn ${currentLevel1 === '매장 외부' ? 'active' : ''}" data-level1="매장 외부">매장 외부</button>
                 <button class="filter-btn ${currentLevel1 === '제품존' ? 'active' : ''}" data-level1="제품존">제품존</button>
+                <button class="filter-btn ${currentLevel1 === '연출존' ? 'active' : ''}" data-level1="연출존">연출존</button>
             </div>
             <div class="filter-level-2" style="display: flex; gap: 0.5rem; flex-wrap: wrap; width: 100%;">
                 <!-- 2nd level buttons injected here -->

@@ -97,18 +97,7 @@
             border-color: var(--lg-red);
         }
 
-        .explore-btn {
-            margin-top: 1.5rem;
-            width: 100%;
-            padding: 1rem;
-            background: var(--lg-red);
-            color: var(--white);
-            border: none;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-            font-size: 1rem;
-        }
+        /* Explore btn from original HTML is now removed, no css needed here */
 
         .right-section {
             display: flex;
@@ -193,53 +182,58 @@
             border: 1px solid #EDEDED;
         }
 
-        .inspection-section {
-            background: #F8F9FA;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-top: 1rem;
-            text-align: center;
-        }
-
-        .inspection-title {
-            font-weight: 700;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid var(--border-gray);
-            padding-bottom: 0.75rem;
-        }
-
-        .inspection-grid {
+        .bottom-action-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-top: 2rem;
         }
 
-        .inspection-item label {
-            color: var(--text-gray);
-            font-size: 0.85rem;
-            display: block;
-            margin-bottom: 0.3rem;
+        .action-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: var(--white);
         }
 
-        .inspection-item span {
+        .action-card-title {
             font-weight: 700;
-            font-size: 1.25rem;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
         }
 
-        .inspection-item .highlight-red {
+        .action-card-desc {
+            color: var(--text-gray);
+            font-size: 1.1rem;
+            line-height: 1.4;
+        }
+
+        .btn-gallery-open {
+            background: var(--white);
+            border: 2px solid var(--lg-red);
             color: var(--lg-red);
-        }
-
-        .btn-more {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border-gray);
-            background: white;
+            padding: 0.5rem 2rem;
+            font-size: 1.2rem;
+            font-weight: 700;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-gallery-open:hover {
+            background: #FFF0F3;
+        }
+
+        .update-date {
+            color: #999;
+            font-size: 0.85rem;
         }
 
         .history-section {
