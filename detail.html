@@ -352,13 +352,7 @@
             position: relative;
         }
 
-        .download-filter-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            margin-top: 1.5rem;
-            margin-bottom: 2rem;
-        }
+        /* .download-filter-grid removed */
 
         .download-filter-btn {
             padding: 0.75rem;
@@ -537,16 +531,16 @@
 
     <!-- Download Modal -->
     <div id="download-modal" class="modal-overlay">
-        <div class="download-modal-content">
-            <span class="close-btn" id="close-download">&times;</span>
-            <h3 style="font-size: 1.2rem; font-weight: 700;">매장 이미지 다운로드</h3>
-            <p style="color: var(--text-gray); font-size: 0.9rem; margin-top: 0.5rem;">다운로드할 존 이미지를 선택해 주세요.</p>
+        <div class="download-modal-content"
+            style="padding: 2.5rem; border-radius: 12px; background: white; width: 450px; max-width: 90vw; position: relative;">
+            <span class="close-btn" id="close-download" style="top: 1.5rem; right: 1.5rem;">&times;</span>
 
-            <div class="download-filter-grid" id="download-zones">
+            <div id="download-zones" style="margin-bottom: 2rem;">
                 <!-- Zones injected via JS -->
             </div>
 
-            <button class="btn-confirm-download" id="confirm-download-btn">다운로드</button>
+            <button class="btn-confirm-download" id="confirm-download-btn"
+                style="width: 100%; border-radius: 8px; padding: 1.25rem 0; background: var(--lg-red); color: white; font-weight: 700; font-size: 1.1rem; border: none; cursor: pointer;">다운로드</button>
         </div>
     </div>
 

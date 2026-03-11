@@ -137,7 +137,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterContainer = document.getElementById('gallery-filters');
 
     let currentLevel1 = 'all';
-    let selectedLevel2 = new Set(['all']);
+
+    // Track selected 2nd-level zones per 1st-level category
+    let selectedGalleryState = {
+        '매장 외부': new Set(['all']),
+        '연출존': new Set(['all']),
+        '제품존': new Set(['all'])
+    };
 
     const level2Mapping = {
         '매장 외부': ["주출입문", "주차장"],
@@ -147,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderGalleryButtons = () => {
         const availableZones = [...new Set(store.images.map(img => img.zone))];
-        
+
         filterContainer.innerHTML = `
             <div class="filter-level-1" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; width: 100%;">
                 <button class="filter-btn ${currentLevel1 === '전체' ? 'active' : (currentLevel1 === 'all' ? 'active' : '')}" data-level1="all">전체</button>
@@ -161,31 +167,43 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         const level2Container = filterContainer.querySelector('.filter-level-2');
-        
+
         const renderLevel2 = () => {
             level2Container.innerHTML = '';
-            let buttonsToShow = [];
-            
-            if (currentLevel1 === 'all') {
-                buttonsToShow = []; // Hide 2nd level when "All" is selected, or show all? 
-                // User said: "1st level button press lets you select 2nd level". 
-                // Let's hide 2nd level if 'all' is selected.
-            } else {
-                const candidates = level2Mapping[currentLevel1] || [];
-                buttonsToShow = candidates.filter(z => availableZones.includes(z));
+
+            if (currentLevel1 === 'all' || !level2Mapping[currentLevel1]) {
+                return; // Hide 2nd level when "All" is selected or no mapping exists
             }
+
+            const candidates = level2Mapping[currentLevel1];
+
+            // Generate [전체, ...candidates]
+            const buttonsToShow = ['all', ...candidates];
+
+            const currentStateSet = selectedGalleryState[currentLevel1];
 
             buttonsToShow.forEach(zone => {
                 const btn = document.createElement('button');
-                btn.className = `filter-btn ${selectedLevel2.has(zone) ? 'active' : ''}`;
-                btn.textContent = zone;
+                btn.className = `filter-btn ${currentStateSet.has(zone) ? 'active' : ''}`;
+                btn.textContent = zone === 'all' ? '전체' : zone;
                 btn.onclick = () => {
-                    if (selectedLevel2.has('all')) selectedLevel2.delete('all');
-                    if (selectedLevel2.has(zone)) {
-                        selectedLevel2.delete(zone);
-                        if (selectedLevel2.size === 0) selectedLevel2.add('all');
+                    if (zone === 'all') {
+                        // "전체" 클릭 시 다른 모든 선택 해제하고 단일 선택
+                        currentStateSet.clear();
+                        currentStateSet.add('all');
                     } else {
-                        selectedLevel2.add(zone);
+                        // 다른 특정 항목 클릭 시
+                        if (currentStateSet.has('all')) {
+                            currentStateSet.delete('all');
+                        }
+
+                        if (currentStateSet.has(zone)) {
+                            currentStateSet.delete(zone);
+                            // 하나도 안 남으면 다시 "전체" 선택
+                            if (currentStateSet.size === 0) currentStateSet.add('all');
+                        } else {
+                            currentStateSet.add(zone);
+                        }
                     }
                     renderLevel2();
                     renderGallery();
@@ -200,8 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 level1Btns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentLevel1 = btn.dataset.level1;
-                selectedLevel2.clear();
-                selectedLevel2.add('all');
+                // do NOT clear selectedGalleryState when switching 1st-level tabs
+                // to retain multi-category selections (user requested cross-category selection)
                 renderLevel2();
                 renderGallery();
             };
@@ -212,14 +230,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderGallery = () => {
         galleryContainer.innerHTML = '';
-        
+
         filteredImages = store.images.filter(img => {
-            if (selectedLevel2.has('all')) {
-                if (currentLevel1 === 'all') return true;
-                // If Level 1 is selected but no Level 2, show all images belonging to that Level 1
-                return level2Mapping[currentLevel1].includes(img.zone);
+            // Find which Level 1 category this image's zone belongs to
+            let imgLevel1 = null;
+            for (const [l1, l2list] of Object.entries(level2Mapping)) {
+                if (l2list.includes(img.zone)) {
+                    imgLevel1 = l1;
+                    break;
+                }
             }
-            return selectedLevel2.has(img.zone);
+
+            // If the image doesn't belong to any known mapping, show it if "all" is selected
+            if (!imgLevel1) {
+                return currentLevel1 === 'all';
+            }
+
+            // check user's cross-category selection states
+            // we gather all explicitly selected explicit zones (excluding 'all')
+            // across ALL Level 1 categories.
+            const hasAnyExplicitSelection = Object.values(selectedGalleryState).some(set => !set.has('all'));
+
+            if (!hasAnyExplicitSelection) {
+                // If user hasn't made ANY explicit 2nd level choices yet
+                if (currentLevel1 === 'all') return true; // everything
+                return imgLevel1 === currentLevel1;       // only current Level 1 visible
+            } else {
+                // User has made explicit choices in some categories
+                const stateForThisImg = selectedGalleryState[imgLevel1];
+
+                // If this category's state is explicitly selected zones
+                if (!stateForThisImg.has('all')) {
+                    if (stateForThisImg.has(img.zone)) return true;
+                }
+                // If user didn't select explicit zones for this category but did for another,
+                // do we show ALL images of this category? The user requested cross-category combination.
+                // It makes more sense to only show what is explicitly selected across the board.
+                // Except if the user is CURRENTLY on a tab with 'all' state, they might expect to see its contents.
+                if (stateForThisImg.has('all') && imgLevel1 === currentLevel1) {
+                    return true;
+                }
+
+                return false;
+            }
         });
 
         if (filteredImages.length === 0) {
@@ -278,45 +331,99 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadModal = document.getElementById('download-modal');
     const openDownloadBtn = document.getElementById('open-download-btn');
     const closeDownloadBtn = document.getElementById('close-download');
-    const downloadZoneContainer = document.getElementById('download-zones');
+    const downloadZoneContainer = document.getElementById('download-zones'); // This is .filter-button-group in HTML
     const confirmDownloadBtn = document.getElementById('confirm-download-btn');
 
-    let selectedDownloadZones = new Set(['all']);
+    let currentDlLevel1 = 'all';
+    let selectedDlState = {
+        '매장 외부': new Set(['all']),
+        '연출존': new Set(['all']),
+        '제품존': new Set(['all'])
+    };
 
     const renderDownloadZones = () => {
         const availableZones = [...new Set(store.images.map(img => img.zone))];
-        const zonesToDisplay = ['all', ...availableZones];
 
-        downloadZoneContainer.innerHTML = zonesToDisplay.map(zone => `
-            <button class="download-filter-btn ${selectedDownloadZones.has(zone) ? 'active' : ''}" data-zone="${zone}">
-                <div class="check-circle"></div>
-                ${zone === 'all' ? '전체' : zone}
-            </button>
-        `).join('');
+        downloadZoneContainer.innerHTML = `
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: #333;">매장 이미지 다운로드</h2>
+            <div style="font-size: 0.95rem; color: #666; margin-bottom: 0.25rem;">다운로드할 존 이미지를 선택해 주세요.</div>
+            <div style="font-size: 0.85rem; color: #999; margin-bottom: 1.5rem;">ZONE을 여러 개 선택하여 한 번에 다운로드할 수 있습니다.</div>
+            
+            <div class="filter-level-1" style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid #EDEDED; padding-bottom: 1.5rem; width: 100%;">
+                <button class="filter-btn ${currentDlLevel1 === '전체' ? 'active' : (currentDlLevel1 === 'all' ? 'active' : '')}" style="flex: 1; padding: 0.5rem 0;" data-level1="all">전체</button>
+                <button class="filter-btn ${currentDlLevel1 === '매장 외부' ? 'active' : ''}" style="flex: 1; padding: 0.5rem 0;" data-level1="매장 외부">매장 외부</button>
+                <button class="filter-btn ${currentDlLevel1 === '제품존' ? 'active' : ''}" style="flex: 1; padding: 0.5rem 0;" data-level1="제품존">제품존</button>
+                <button class="filter-btn ${currentDlLevel1 === '연출존' ? 'active' : ''}" style="flex: 1; padding: 0.5rem 0;" data-level1="연출존">연출존</button>
+            </div>
+            <div class="filter-level-2" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; width: 100%;">
+                <!-- 2nd level buttons injected here -->
+            </div>
+        `;
 
-        downloadZoneContainer.querySelectorAll('.download-filter-btn').forEach(btn => {
-            btn.onclick = () => {
-                const zone = btn.dataset.zone;
-                if (zone === 'all') {
-                    selectedDownloadZones.clear();
-                    selectedDownloadZones.add('all');
-                } else {
-                    selectedDownloadZones.delete('all');
-                    if (selectedDownloadZones.has(zone)) {
-                        selectedDownloadZones.delete(zone);
-                        if (selectedDownloadZones.size === 0) selectedDownloadZones.add('all');
+        const level2Container = downloadZoneContainer.querySelector('.filter-level-2');
+
+        const renderLevel2 = () => {
+            level2Container.innerHTML = '';
+
+            if (currentDlLevel1 === 'all' || !level2Mapping[currentDlLevel1]) {
+                return;
+            }
+
+            const candidates = level2Mapping[currentDlLevel1];
+
+            const buttonsToShow = ['all', ...candidates];
+            const currentStateSet = selectedDlState[currentDlLevel1];
+
+            buttonsToShow.forEach(zone => {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn ${currentStateSet.has(zone) ? 'active' : ''}`;
+                btn.style.width = "100%";
+                btn.style.padding = "0.5rem 0";
+                btn.textContent = zone === 'all' ? '전체' : zone;
+                btn.onclick = () => {
+                    if (zone === 'all') {
+                        currentStateSet.clear();
+                        currentStateSet.add('all');
                     } else {
-                        selectedDownloadZones.add(zone);
+                        if (currentStateSet.has('all')) {
+                            currentStateSet.delete('all');
+                        }
+
+                        if (currentStateSet.has(zone)) {
+                            currentStateSet.delete(zone);
+                            if (currentStateSet.size === 0) currentStateSet.add('all');
+                        } else {
+                            currentStateSet.add(zone);
+                        }
                     }
-                }
-                renderDownloadZones();
+                    renderLevel2(); // Re-render Level 2 to update active states
+                };
+                level2Container.appendChild(btn);
+            });
+        };
+
+        const level1Btns = downloadZoneContainer.querySelectorAll('.filter-level-1 .filter-btn');
+        level1Btns.forEach(btn => {
+            btn.onclick = () => {
+                level1Btns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentDlLevel1 = btn.dataset.level1;
+                // do NOT clear selectedDlState to retain cross-category selections
+                renderLevel2();
             };
         });
+
+        renderLevel2();
     };
 
     openDownloadBtn.onclick = () => {
         downloadModal.style.display = 'flex';
-        selectedDownloadZones = new Set(['all']);
+        currentDlLevel1 = 'all';
+        selectedDlState = {
+            '매장 외부': new Set(['all']),
+            '연출존': new Set(['all']),
+            '제품존': new Set(['all'])
+        };
         renderDownloadZones();
     };
 
@@ -324,9 +431,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     confirmDownloadBtn.onclick = async () => {
         const jszip = new JSZip();
-        const imagesToDownload = selectedDownloadZones.has('all')
-            ? store.images
-            : store.images.filter(img => selectedDownloadZones.has(img.zone));
+
+        const imagesToDownload = store.images.filter(img => {
+            let imgLevel1 = null;
+            for (const [l1, l2list] of Object.entries(level2Mapping)) {
+                if (l2list.includes(img.zone)) {
+                    imgLevel1 = l1;
+                    break;
+                }
+            }
+
+            if (!imgLevel1) return currentDlLevel1 === 'all';
+
+            const hasAnyExplicitSelection = Object.values(selectedDlState).some(set => !set.has('all'));
+
+            if (!hasAnyExplicitSelection) {
+                if (currentDlLevel1 === 'all') return true;
+                return imgLevel1 === currentDlLevel1;
+            } else {
+                const stateForThisImg = selectedDlState[imgLevel1];
+                if (!stateForThisImg.has('all')) {
+                    if (stateForThisImg.has(img.zone)) return true;
+                }
+                if (stateForThisImg.has('all') && imgLevel1 === currentDlLevel1) {
+                    return true;
+                }
+                return false;
+            }
+        });
 
         if (imagesToDownload.length === 0) {
             alert('다운로드할 이미지가 없습니다.');
